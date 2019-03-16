@@ -21,9 +21,17 @@ class Wallet:
         public_key = private_key.publickey()
         self.public_key = public_key
         self.private_key = private_key
-        self.transactions
+        self.balance = 0
 
     def public_key(self):
         return self.public_key
 
-    # def balance(self):
+    def private_key(self):
+        return self.private_key
+
+    def get_balance(self, unspent_transactions):
+        self.balance = 0
+        for t in unspent_transactions:
+            self.balance += t[1]
+
+        return self.balance

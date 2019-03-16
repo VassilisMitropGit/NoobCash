@@ -28,7 +28,7 @@ def register_node():
     nodeid += 1
     print(request.form['public_key'])
     response = {'id': nodeid}
-    curr_node.register_node_to_ring()
+    curr_node.register_node_to_ring(request.form['public_key'], request.form['ip_address'], nodeid, 0)
     return jsonify(response), 200
 
 
