@@ -20,28 +20,33 @@ class Node:
             self.contact_bootstrap(bootstrap_address, node_address)
         else:
             self.current_id = 0
+            self.nodes = clients
             self.create_genesis_block(clients)
+            self.register_node_to_ring(self.myWallet.public_key, bootstrap_address, 0, 0)
             self.NBC = clients * 100
 
     def contact_bootstrap(self, bootstrap_address, node_address):
-        # r = requests.post(bootstrap_address + '/bootstrap/register', data={
-        #     'public_key': self.myWallet.public_key,
-        #     'ip_address': node_address
-        # })
+        # r = requests.post(bootstrap_address + '/bootstrap/register',
+        #                   data={'public_key': self.myWallet.public_key, 'ip_address': node_address})
+        # data = r.json()
+        # self.current_id = data[0]['id']
         self.NBC = 1  # this is temp line of code until the requests are complete
 
     def create_genesis_block(self, clients):
-        first_transaction = transaction.Transaction(0, 0, self.myWallet.public_key, clients * 100)
-        first_unspent_transaction = (self.myWallet.public_key, clients*100)
+        first_transaction = transaction.Transaction(0, 0, self.myWallet.public_key, clients * 100, None)
+        first_unspent_transaction = {
+            'recipient': self.myWallet.public_key,
+            'value': clients * 100
+        }
         self.unspent_transactions.append(first_unspent_transaction)
-        genesis_block = block.Block(0, time.time(), first_transaction, 1)
+        genesis_block = block.Block(0, time.time(), first_transaction.to_dict(), 1)
         self.chain.append(genesis_block)
 
     def create_new_block(self, prev_hash):
         self.myBlock = block.Block(None, time.time(), None, prev_hash)
 
     def create_wallet(self):
-        return wallet.Wallet
+        return wallet.Wallet()
 
     def get_balance(self):
         self.NBC = self.myWallet.get_balance(self.unspent_transactions)
@@ -55,14 +60,21 @@ class Node:
             'balance': balance
         }
         self.ring.append(node)
-        first_node_transaction = self.create_transaction(public_key, 0, 100)
+        if self.ring.__sizeof__() == self.nodes:
+            print('done')
 
     def create_transaction(self, receiver, signature, value):
         my_transaction = transaction.Transaction(self.myWallet.public_key, self.myWallet.private_key, receiver, value)
+        self.broadcast_transaction(my_transaction)
         return my_transaction
-    # remember to broadcast it
 
-    # def broadcast_transaction(self):
+    def broadcast_transaction(self, my_transaction):
+        for t in self.ring:
+            # r = requests.post(bootstrap_address + '/bootstrap/register', data={
+            #     'public_key': self.myWallet.public_key,
+            #     'ip_address': node_address
+            # })
+            self.NBC = 1  # this is temp line of code until the requests are complete
 
     # def validate_transaction(self):
 
@@ -85,7 +97,4 @@ class Node:
     # check for the longer chain accroose all nodes
 
     # def resolve_conflicts(self):
-# resolve correct chain
-
-
-
+    # resolve correct chain

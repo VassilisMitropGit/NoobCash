@@ -14,11 +14,12 @@ from flask import Flask, jsonify, request, render_template
 
 class Transaction:
 
-    def __init__(self, sender_address, sender_private_key, recipient_address, value):
+    def __init__(self, sender_address, sender_private_key, recipient_address, value, transaction_inputs):
         self.sender_address = sender_address
         self.sender_private_key = sender_private_key
         self.recipient_address = recipient_address
         self.value = value
+        self.transaction_inputs = transaction_inputs
 
     def __getattr__(self, attr):
         return self.data[attr]
@@ -36,3 +37,5 @@ class Transaction:
         signer = PKCS1_v1_5.new(private_key)
         h = SHA.new(str(self.to_dict()).encode('utf8'))
         return binascii.hexlify(signer.sign(h)).decode('ascii')
+
+    # def create_outputs(self):
