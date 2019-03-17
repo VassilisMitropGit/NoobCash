@@ -27,6 +27,7 @@ def register_node():
     global nodeid
     nodeid += 1
     response = {'id': nodeid}
+    print(response)
     curr_node.register_node_to_ring(request.form['public_key'], request.form['ip_address'], nodeid, 0)
     return jsonify(response), 200
 
@@ -36,7 +37,7 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     parser.add_argument('-p', '--port', default=5000, type=int, help='port to listen on')
-    parser.add_argument('-b', '--bootstrap', default=True, type=bool, help='boolean to check if this node is the bootstrap node')
+    parser.add_argument('-b', '--bootstrap', default=True, action='store_false', help='boolean to check if this node is the bootstrap node')
     parser.add_argument('-ba', '--baddress', default='http://localhost:5000', type=str, help='the ip address of the bootstrap node')
     parser.add_argument('-a', '--address', default='localhost:5000', type=str, help='the ip address of the current node')
     parser.add_argument('-c', '--clients', default=5, type=int, help='number of clients in the system')

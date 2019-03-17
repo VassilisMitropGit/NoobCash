@@ -26,11 +26,10 @@ class Node:
             self.NBC = clients * 100
 
     def contact_bootstrap(self, bootstrap_address, node_address):
-        # r = requests.post(bootstrap_address + '/bootstrap/register',
-        #                   data={'public_key': self.myWallet.public_key, 'ip_address': node_address})
-        # data = r.json()
-        # self.current_id = data[0]['id']
-        self.NBC = 1  # this is temp line of code until the requests are complete
+        r = requests.post(bootstrap_address + '/bootstrap/register',
+                          data={'public_key': self.myWallet.public_key, 'ip_address': node_address})
+        data = r.json()
+        self.current_id = data['id']
 
     def create_genesis_block(self, clients):
         first_transaction = transaction.Transaction(0, 0, self.myWallet.public_key, clients * 100, None)
@@ -60,6 +59,7 @@ class Node:
             'balance': balance
         }
         self.ring.append(node)
+        print(node)
         if self.ring.__sizeof__() == self.nodes:
             print('done')
 
