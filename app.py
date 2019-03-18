@@ -1,7 +1,7 @@
 import requests
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
-
+import json
 
 import block
 import blockchain
@@ -11,6 +11,7 @@ import wallet
 
 nodeid = 0
 curr_node = None
+CAPACITY = 6
 
 app = Flask(__name__)
 
@@ -22,12 +23,17 @@ def hello_world():
     return 'Hello World!'
 
 
+@app.route('/get/first_transactions', methods=['GET'])
+def get_first_transactions():
+    global curr_node
+
+
 @app.route('/get/ring', methods=['GET'])
 def get_ring():
     global curr_node
-    response = {'ring': curr_node.ring}
+    response = {'ring': curr_node.ring, 'chain': curr_node.chain}
     for node_ip in curr_node.ring[1:-1]:
-        r = requests.post(node_ip['ip_address'] + '/post/ring', data={'ring': curr_node.ring})
+        r = requests.post(node_ip['ip_address'] + '/post/ring', json={'ring': curr_node.ring, 'chain': curr_node.chain})
         data = r.json()
         print(data['message'])
     return jsonify(response), 200
@@ -36,7 +42,9 @@ def get_ring():
 @app.route('/post/ring', methods=['POST'])
 def post_ring():
     global curr_node
-    curr_node.ring = request.form['ring']
+    curr_node.ring = request.get_json()['ring']
+    curr_node.chain = request.get_json()['chain']
+    curr_node.create_new_block(curr_node.chain[-1]['hash'])
     response = {'message': 'OK'}
     return jsonify(response), 200
 

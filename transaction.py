@@ -1,3 +1,6 @@
+import hashlib
+import json
+import uuid
 from collections import OrderedDict
 
 import binascii
@@ -20,6 +23,10 @@ class Transaction:
         self.recipient_address = recipient_address
         self.value = value
         self.transaction_inputs = transaction_inputs
+        if sender_private_key is not 0:
+            self.signature = self.sign_transaction()
+            self.transaction_outputs = self.create_outputs()
+            self.transaction_id = self.calculate_hash()
 
     def __getattr__(self, attr):
         return self.data[attr]
@@ -38,4 +45,27 @@ class Transaction:
         h = SHA.new(str(self.to_dict()).encode('utf8'))
         return binascii.hexlify(signer.sign(h)).decode('ascii')
 
-    # def create_outputs(self):
+    def create_outputs(self):
+        balance = 0
+        for t_input in self.transaction_inputs:
+            balance = balance + t_input['value']
+        first_output = {
+            'recipient': self.sender_address,
+            'value': self.value - balance
+        }
+        second_output = {
+            'recipient': self.recipient_address,
+            'value': self.value
+        }
+        outputs = [first_output, second_output]
+        return outputs
+
+    def calculate_hash(self):
+        transaction_string = json.dumps({
+            "sender_address": self.sender_address,
+            "recipient_address": self.recipient_address,
+            "value": self.value,
+            "transaction_inputs": self.transaction_inputs,
+            "signature": self.signature
+        }, sort_keys=True).encode()
+        return hashlib.sha256(transaction_string).hexdigest()

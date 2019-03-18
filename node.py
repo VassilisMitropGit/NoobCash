@@ -3,7 +3,7 @@ import wallet
 import transaction
 import time
 import requests
-
+import uuid
 
 class Node:
     def __init__(self, bootstrap_address=None, clients=None, node_address=None, is_bootstrap=None):
@@ -33,20 +33,27 @@ class Node:
         if data['last_node']:
             r = requests.get(bootstrap_address + '/get/ring')
             data = r.json()
+            self.ring = data['ring']
+            self.chain = data['chain']
+            self.create_new_block(self.chain[-1]['hash'])
             print('got my ring')
+            # r = requests.get(bootstrap_address + '/get/first_transactions')
 
     def create_genesis_block(self, clients):
         first_transaction = transaction.Transaction(0, 0, self.myWallet.public_key, clients * 100, None)
         first_unspent_transaction = {
+            'id': uuid.uuid4(),
+            'transaction_id': 0,
             'recipient': self.myWallet.public_key,
             'value': clients * 100
         }
         self.unspent_transactions.append(first_unspent_transaction)
         genesis_block = block.Block(0, time.time(), first_transaction.to_dict(), 1)
-        self.chain.append(genesis_block)
+        self.chain.append(genesis_block.to_dict())
+        self.create_new_block(self.chain[-1]['hash'])
 
     def create_new_block(self, prev_hash):
-        self.myBlock = block.Block(None, time.time(), None, prev_hash)
+        self.myBlock = block.Block(None, time.time(), [], prev_hash)
 
     def create_wallet(self):
         return wallet.Wallet()
@@ -68,7 +75,7 @@ class Node:
             last_node = True
         return last_node
 
-    def create_transaction(self, receiver, signature, value):
+    def create_transaction(self, receiver, value):
         my_transaction = transaction.Transaction(self.myWallet.public_key, self.myWallet.private_key, receiver, value)
         self.broadcast_transaction(my_transaction)
         return my_transaction
