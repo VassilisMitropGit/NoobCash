@@ -30,6 +30,10 @@ class Node:
                           data={'public_key': self.myWallet.public_key, 'ip_address': node_address})
         data = r.json()
         self.current_id = data['id']
+        if data['last_node']:
+            r = requests.get(bootstrap_address + '/get/ring')
+            data = r.json()
+            print('got my ring')
 
     def create_genesis_block(self, clients):
         first_transaction = transaction.Transaction(0, 0, self.myWallet.public_key, clients * 100, None)
@@ -59,9 +63,10 @@ class Node:
             'balance': balance
         }
         self.ring.append(node)
-        print(node)
-        if self.ring.__sizeof__() == self.nodes:
-            print('done')
+        last_node = False
+        if len(self.ring) == self.nodes:
+            last_node = True
+        return last_node
 
     def create_transaction(self, receiver, signature, value):
         my_transaction = transaction.Transaction(self.myWallet.public_key, self.myWallet.private_key, receiver, value)
