@@ -1,3 +1,5 @@
+import copy
+
 import requests
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
@@ -9,6 +11,7 @@ import transaction
 import node
 import wallet
 
+transaction_count = 1
 nodeid = 0
 curr_node = None
 CAPACITY = 6
@@ -26,8 +29,24 @@ def hello_world():
 @app.route('/get/first_transactions', methods=['GET'])
 def get_first_transactions():
     global curr_node
-    t = transaction.Transaction(curr_node.myWallet.public_key, curr_node.myWallet.private_key, curr_node.ring[1]['public_key'], 100, curr_node.unspent_transactions, 0, 1)
+    global transaction_count
+    t = transaction.Transaction(curr_node.myWallet.public_key, curr_node.myWallet.private_key, curr_node.ring[transaction_count]['public_key'], 100, copy.deepcopy(curr_node.ring[0]['balance']), 0, transaction_count)
     response = {'transaction': t.to_dict_transaction()}
+    curr_node.validate_transaction({'transaction': t.to_dict_transaction()})
+    for node_ip in curr_node.ring[1:-1]:
+        r = requests.post(node_ip['ip_address'] + '/post/first_transactions', json={'transaction': t.to_dict_transaction()})
+        data = r.json()
+        print(data['message'])
+    transaction_count += 1
+    return jsonify(response), 200
+
+
+@app.route('/post/first_transactions', methods=['POST'])
+def post_first_transactions():
+    global curr_node
+    transaction_data = request.get_json()['transaction']
+    curr_node.validate_transaction({'transaction': transaction_data})
+    response = {'message': 'OK'}
     return jsonify(response), 200
 
 

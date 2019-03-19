@@ -1,4 +1,6 @@
 import binascii
+import copy
+from pprint import pprint
 
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
@@ -30,7 +32,7 @@ class Node:
             self.current_id = 0
             self.nodes = clients
             self.create_genesis_block(clients)
-            self.register_node_to_ring(self.myWallet.public_key, bootstrap_address, 0, self.unspent_transactions)
+            self.register_node_to_ring(self.myWallet.public_key, bootstrap_address, 0, copy.deepcopy(self.unspent_transactions))
             self.NBC = clients * 100
 
     def contact_bootstrap(self, bootstrap_address, node_address):
@@ -45,10 +47,11 @@ class Node:
             self.chain = data['chain']
             self.create_new_block(self.chain[-1]['hash'])
             print('got my ring')
-            r = requests.get(bootstrap_address + '/get/first_transactions')
-            data = r.json()
-            print('transaction done! Time to validate it ...')
-            self.validate_transaction(data)
+            for i in range(0, len(self.ring) - 1):
+                r = requests.get(bootstrap_address + '/get/first_transactions')
+                data = r.json()
+                print('transaction done! Time to validate it ...')
+                self.validate_transaction(data)
 
     def create_genesis_block(self, clients):
         first_transaction = transaction.Transaction(0, 0, self.myWallet.public_key, clients * 100, None, 0, 0)

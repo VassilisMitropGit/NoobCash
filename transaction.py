@@ -30,9 +30,6 @@ class Transaction:
             self.transaction_id = self.calculate_hash()
             self.transaction_outputs = self.create_outputs()
 
-    def __getattr__(self, attr):
-        return self.data[attr]
-
     def to_dict(self):
         return OrderedDict({'sender_address': self.sender_address,
                             'recipient_address': self.recipient_address,
