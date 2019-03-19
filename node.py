@@ -1,9 +1,17 @@
+import binascii
+
+from Crypto.PublicKey import RSA
+from Crypto.Signature import PKCS1_v1_5
+from Crypto.Hash import SHA
+from collections import OrderedDict
+
 import block
 import wallet
 import transaction
 import time
 import requests
 import uuid
+
 
 class Node:
     def __init__(self, bootstrap_address=None, clients=None, node_address=None, is_bootstrap=None):
@@ -22,7 +30,7 @@ class Node:
             self.current_id = 0
             self.nodes = clients
             self.create_genesis_block(clients)
-            self.register_node_to_ring(self.myWallet.public_key, bootstrap_address, 0, 0)
+            self.register_node_to_ring(self.myWallet.public_key, bootstrap_address, 0, self.unspent_transactions)
             self.NBC = clients * 100
 
     def contact_bootstrap(self, bootstrap_address, node_address):
@@ -37,12 +45,15 @@ class Node:
             self.chain = data['chain']
             self.create_new_block(self.chain[-1]['hash'])
             print('got my ring')
-            # r = requests.get(bootstrap_address + '/get/first_transactions')
+            r = requests.get(bootstrap_address + '/get/first_transactions')
+            data = r.json()
+            print('transaction done! Time to validate it ...')
+            self.validate_transaction(data)
 
     def create_genesis_block(self, clients):
-        first_transaction = transaction.Transaction(0, 0, self.myWallet.public_key, clients * 100, None)
+        first_transaction = transaction.Transaction(0, 0, self.myWallet.public_key, clients * 100, None, 0, 0)
         first_unspent_transaction = {
-            'id': uuid.uuid4(),
+            'id': uuid.uuid4().int,
             'transaction_id': 0,
             'recipient': self.myWallet.public_key,
             'value': clients * 100
@@ -88,25 +99,44 @@ class Node:
             # })
             self.NBC = 1  # this is temp line of code until the requests are complete
 
-    # def validate_transaction(self):
+    def validate_transaction(self, v_transaction):
+        print('The validation begins')
+        signature_verification = self.verify_signature(v_transaction)
+        if signature_verification:
+            print('signature is valid!')
+            if all(x in self.ring[v_transaction['transaction']['sender_id']]['balance'] for x in v_transaction['transaction']['transaction_inputs']):
+                print('transaction is valid!')
+                for t in v_transaction['transaction']['transaction_inputs']:
+                    self.ring[v_transaction['transaction']['sender_id']]['balance'].remove(t)
+                self.add_transaction_to_block(v_transaction)
+                self.ring[v_transaction['transaction']['sender_id']]['balance']\
+                    .append(v_transaction['transaction']['transaction_outputs'][0])
+                self.ring[v_transaction['transaction']['recipient_id']]['balance']\
+                    .append(v_transaction['transaction']['transaction_outputs'][1])
 
-    # use of signature and NBCs balance
+    def verify_signature(self, v_transaction):
+        """
+        Check that the provided signature corresponds to transaction
+        signed by the public key (sender_address)
+        """
+        print("Let's check the signature")
+        public_key = RSA.importKey(binascii.unhexlify(v_transaction['transaction']['sender_address']))
+        verifier = PKCS1_v1_5.new(public_key)
+        check = OrderedDict({'sender_address': v_transaction['transaction']['sender_address'],
+                             'recipient_address': v_transaction['transaction']['recipient_address'],
+                             'value': v_transaction['transaction']['value']})
+        h = SHA.new(str(check).encode('utf8'))
+        return verifier.verify(h, binascii.unhexlify(v_transaction['transaction']['signature']))
 
-    # def add_transaction_to_block(self):
-
-    # if enough transactions  mine
-
+    def add_transaction_to_block(self, v_transaction):
+        print('Now going to add the transaction to myBlock')
+        self.myBlock.transactions.append(v_transaction)
     # def mine_block(self):
 
     # def broadcast_block(self):
 
     # def valid_proof(self, difficulty=MINING_DIFFICULTY):
 
-    # concencus functions
-
     # def valid_chain(self, chain):
 
-    # check for the longer chain accroose all nodes
-
     # def resolve_conflicts(self):
-    # resolve correct chain

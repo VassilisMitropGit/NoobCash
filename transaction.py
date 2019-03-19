@@ -17,16 +17,18 @@ from flask import Flask, jsonify, request, render_template
 
 class Transaction:
 
-    def __init__(self, sender_address, sender_private_key, recipient_address, value, transaction_inputs):
+    def __init__(self, sender_address, sender_private_key, recipient_address, value, transaction_inputs, sender_id, recipient_id):
         self.sender_address = sender_address
         self.sender_private_key = sender_private_key
         self.recipient_address = recipient_address
         self.value = value
         self.transaction_inputs = transaction_inputs
+        self.sender_id = sender_id
+        self.recipient_id = recipient_id
         if sender_private_key is not 0:
             self.signature = self.sign_transaction()
-            self.transaction_outputs = self.create_outputs()
             self.transaction_id = self.calculate_hash()
+            self.transaction_outputs = self.create_outputs()
 
     def __getattr__(self, attr):
         return self.data[attr]
@@ -50,10 +52,14 @@ class Transaction:
         for t_input in self.transaction_inputs:
             balance = balance + t_input['value']
         first_output = {
+            'id': uuid.uuid4().int,
+            'transaction_id': self.transaction_id,
             'recipient': self.sender_address,
-            'value': self.value - balance
+            'value': balance - self.value
         }
         second_output = {
+            'id': uuid.uuid4().int,
+            'transaction_id': self.transaction_id,
             'recipient': self.recipient_address,
             'value': self.value
         }
@@ -69,3 +75,14 @@ class Transaction:
             "signature": self.signature
         }, sort_keys=True).encode()
         return hashlib.sha256(transaction_string).hexdigest()
+
+    def to_dict_transaction(self):
+        return OrderedDict({'sender_address': self.sender_address,
+                            'recipient_address': self.recipient_address,
+                            'value': self.value,
+                            'transaction_id': self.transaction_id,
+                            'signature': self.signature,
+                            'transaction_outputs': self.transaction_outputs,
+                            'transaction_inputs': self.transaction_inputs,
+                            'sender_id': self.sender_id,
+                            'recipient_id': self.recipient_id})

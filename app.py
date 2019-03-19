@@ -26,6 +26,9 @@ def hello_world():
 @app.route('/get/first_transactions', methods=['GET'])
 def get_first_transactions():
     global curr_node
+    t = transaction.Transaction(curr_node.myWallet.public_key, curr_node.myWallet.private_key, curr_node.ring[1]['public_key'], 100, curr_node.unspent_transactions, 0, 1)
+    response = {'transaction': t.to_dict_transaction()}
+    return jsonify(response), 200
 
 
 @app.route('/get/ring', methods=['GET'])
@@ -53,7 +56,7 @@ def post_ring():
 def register_node():
     global nodeid
     nodeid += 1
-    last_node = curr_node.register_node_to_ring(request.form['public_key'], request.form['ip_address'], nodeid, 0)
+    last_node = curr_node.register_node_to_ring(request.form['public_key'], request.form['ip_address'], nodeid, [])
     response = {'id': nodeid, 'last_node': last_node}
     print(response)
     return jsonify(response), 200
