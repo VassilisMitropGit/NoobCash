@@ -86,6 +86,7 @@ class Node:
     def get_balance(self):
         self.NBC = self.myWallet.get_balance(self.ring[self.current_id]['balance'])
         print(self.NBC)
+        return self.NBC
 
     def register_node_to_ring(self, public_key, ip_address, node_id, balance):
         node = {
@@ -191,3 +192,7 @@ class Node:
             return True
 
         return False
+
+    def view_transactions(self):
+        last_block = self.chain[-1]
+        return last_block['transactions']

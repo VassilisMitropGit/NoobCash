@@ -28,6 +28,64 @@ def hello_world():
     return redirect('https://www.youtube.com/watch?v=iA9KDAGwuMc')
 
 
+@app.route('/post/transaction', methods=['POST'])
+def create_transaction():
+    print('Creating the transaction')
+    global curr_node
+    recipient_address = request.form['recipient_address']
+    amount = request.form['amount']
+    c_id = None
+    for c_node in curr_node.ring:
+        if recipient_address == c_node['public_key']:
+            c_id = c_node['node_id']
+    t = transaction.Transaction(curr_node.myWallet.public_key, curr_node.myWallet.private_key,
+                                recipient_address, amount,
+                                copy.deepcopy(curr_node.ring[curr_node.current_id]['balance']),
+                                curr_node.current_id, c_id)
+    curr_node.validate_transaction({'transaction': t.to_dict_transaction()})
+    for b_node in curr_node.ring:
+        if b_node['id'] != curr_node.current_id:
+            r = requests.post(b_node['ip_address'] + '/receive/transaction',
+                              json={'transaction': t.to_dict_transaction()})
+    response = {'message': 'OK'}
+    return jsonify(response), 200
+
+
+@app.route('/receive/transaction', methods=['POST'])
+def receive_transaction():
+    print('Receiving transaction')
+    global curr_node
+    transaction_data = request.get_json()['transaction']
+    curr_node.validate_transaction({'transaction': transaction_data})
+    response = {'message': 'OK'}
+    return jsonify(response), 200
+
+
+@app.route('/get/view', methods=['GET'])
+def get_view():
+    print('Im going to print the transactions of the current block')
+    global curr_node
+    curr_node.view_transactions()
+    response = {'message': 'OK'}
+    return jsonify(response), 200
+
+
+@app.route('/get/balance', methods=['GET'])
+def get_balance():
+    print('Printing the current balance')
+    global curr_node
+    curr_node.get_balance()
+    response = {'message': 'OK'}
+    return jsonify(response), 200
+
+
+@app.route('/get/help', methods=['GET'])
+def get_help():
+    print('Help')
+    response = {'message': 'OK'}
+    return jsonify(response), 200
+
+
 @app.route('/post/starting_blockchain', methods=['POST'])
 def get_starting_blockchain():
     global curr_node
@@ -56,11 +114,10 @@ def get_first_transactions():
 @app.route('/post/first_transactions', methods=['POST'])
 def post_first_transactions():
     global curr_node
-    if len(curr_node.myBlock.transactions) < 6:
-        transaction_data = request.get_json()['transaction']
-        curr_node.validate_transaction({'transaction': transaction_data})
-        response = {'message': 'OK'}
-        return jsonify(response), 200
+    transaction_data = request.get_json()['transaction']
+    curr_node.validate_transaction({'transaction': transaction_data})
+    response = {'message': 'OK'}
+    return jsonify(response), 200
 
 
 @app.route('/get/ring', methods=['GET'])
