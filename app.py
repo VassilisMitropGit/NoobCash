@@ -2,7 +2,7 @@ import copy
 from pprint import pprint
 
 import requests
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, redirect
 from flask_cors import CORS
 import json
 
@@ -25,7 +25,7 @@ CORS(app)
 
 @app.route('/')
 def hello_world():
-    return 'Hello World!'
+    return redirect('https://www.youtube.com/watch?v=iA9KDAGwuMc')
 
 
 @app.route('/post/starting_blockchain', methods=['POST'])
