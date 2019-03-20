@@ -6,6 +6,7 @@ from collections import OrderedDict
 
 
 CAPACITY = 6
+MINING_DIFFICULTY = 5
 
 
 class Block:
@@ -15,7 +16,8 @@ class Block:
         self.timestamp = timestamp
         self.transactions = transactions
         self.previous_hash = previous_hash
-        if nonce == 0 or len(transactions) == CAPACITY:
+        self.hash = None
+        if nonce == 0:
             self.hash = self.calculate_hash()
 
     def to_dict(self):

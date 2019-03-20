@@ -1,5 +1,6 @@
 import binascii
 import copy
+import hashlib
 from pprint import pprint
 
 from Crypto.PublicKey import RSA
@@ -13,6 +14,9 @@ import transaction
 import time
 import requests
 import uuid
+
+CAPACITY = 6
+MINING_DIFFICULTY = 2
 
 
 class Node:
@@ -52,6 +56,13 @@ class Node:
                 data = r.json()
                 print('transaction done! Time to validate it ...')
                 self.validate_transaction(data)
+            self.mine_block()
+            self.myBlock.hash = self.myBlock.calculate_hash()
+            self.chain.append(self.myBlock.to_dict())
+            self.myBlock = None
+            for node_ip in self.ring[:-1]:
+                r = requests.post(node_ip['ip_address'] + '/post/starting_blockchain', json={'chain': self.chain})
+            pprint(self.chain)
 
     def create_genesis_block(self, clients):
         first_transaction = transaction.Transaction(0, 0, self.myWallet.public_key, clients * 100, None, 0, 0)
@@ -73,7 +84,7 @@ class Node:
         return wallet.Wallet()
 
     def get_balance(self):
-        self.NBC = self.myWallet.get_balance(self.unspent_transactions)
+        self.NBC = self.myWallet.get_balance(self.ring[self.current_id]['balance'])
         print(self.NBC)
 
     def register_node_to_ring(self, public_key, ip_address, node_id, balance):
@@ -118,10 +129,6 @@ class Node:
                     .append(v_transaction['transaction']['transaction_outputs'][1])
 
     def verify_signature(self, v_transaction):
-        """
-        Check that the provided signature corresponds to transaction
-        signed by the public key (sender_address)
-        """
         print("Let's check the signature")
         public_key = RSA.importKey(binascii.unhexlify(v_transaction['transaction']['sender_address']))
         verifier = PKCS1_v1_5.new(public_key)
@@ -134,12 +141,29 @@ class Node:
     def add_transaction_to_block(self, v_transaction):
         print('Now going to add the transaction to myBlock')
         self.myBlock.transactions.append(v_transaction)
-    # def mine_block(self):
+
+    def mine_block(self):
+        last_block = self.chain[-1]
+        nonce = self.proof_of_work()
+        last_hash = last_block['hash']
+        print(nonce)
+        self.myBlock.nonce = nonce
+
+    def proof_of_work(self):
+        last_block = self.chain[-1]
+        last_hash = last_block['hash']
+
+        nonce = 0
+        while self.valid_proof(self.myBlock.transactions, last_hash, nonce) is False:
+            nonce += 1
+
+        return nonce
+
+    def valid_proof(self, transactions, last_hash, nonce, difficulty=MINING_DIFFICULTY):
+        guess = (str(transactions)+str(last_hash)+str(nonce)).encode()
+        guess_hash = hashlib.sha256(guess).hexdigest()
+        return guess_hash[:difficulty] == '0'*difficulty
 
     # def broadcast_block(self):
-
-    # def valid_proof(self, difficulty=MINING_DIFFICULTY):
-
-    # def valid_chain(self, chain):
 
     # def resolve_conflicts(self):

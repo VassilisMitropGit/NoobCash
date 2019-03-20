@@ -32,6 +32,6 @@ class Wallet:
     def get_balance(self, unspent_transactions):
         self.balance = 0
         for t in unspent_transactions:
-            self.balance += t[1]
+            self.balance += t['value']
 
         return self.balance
