@@ -57,7 +57,8 @@ def receive_transaction():
     print('Receiving transaction')
     global curr_node
     transaction_data = request.get_json()['transaction']
-    curr_node.validate_transaction({'transaction': transaction_data})
+    curr_node.add_transaction_to_pool({'transaction': transaction_data})
+    #curr_node.validate_transaction({'transaction': transaction_data})
     response = {'message': 'OK'}
     return jsonify(response), 200
 
