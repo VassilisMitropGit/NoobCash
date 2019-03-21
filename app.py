@@ -42,7 +42,8 @@ def create_transaction():
                                 recipient_address, amount,
                                 copy.deepcopy(curr_node.ring[curr_node.current_id]['balance']),
                                 curr_node.current_id, c_id)
-    curr_node.validate_transaction({'transaction': t.to_dict_transaction()})
+    #curr_node.validate_transaction({'transaction': t.to_dict_transaction()})
+    curr_node.add_transaction_to_pool({'transaction': t.to_dict_transaction()})
     for b_node in curr_node.ring:
         if b_node['id'] != curr_node.current_id:
             r = requests.post(b_node['ip_address'] + '/receive/transaction',
@@ -91,7 +92,7 @@ def get_starting_blockchain():
     global curr_node
     curr_node.myBlock = None
     curr_node.chain = request.get_json()['chain']
-    pprint(curr_node.chain)
+    curr_node.create_new_block(curr_node.chain[-1]['hash'])
     response = {'message': 'OK'}
     return jsonify(response), 200
 

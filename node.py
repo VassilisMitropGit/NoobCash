@@ -1,12 +1,13 @@
 import binascii
 import copy
 import hashlib
+import threading
 from pprint import pprint
 
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.Hash import SHA
-from collections import OrderedDict
+from collections import OrderedDict, deque
 
 import block
 import wallet
@@ -29,6 +30,10 @@ class Node:
         self.ring = []
         self.unspent_transactions = []
         self.ip_address = node_address
+        self.transaction_pool = deque()
+        self.available_transactions = threading.Semaphore(value=0)
+        myThread = threading.Thread(target=self.thread_function)
+        myThread.start()
 
         if not is_bootstrap:
             self.contact_bootstrap(bootstrap_address, node_address)
@@ -38,6 +43,19 @@ class Node:
             self.create_genesis_block(clients)
             self.register_node_to_ring(self.myWallet.public_key, bootstrap_address, 0, copy.deepcopy(self.unspent_transactions))
             self.NBC = clients * 100
+
+    def add_transaction_to_pool(self, t):
+        self.transaction_pool.appendleft(t)
+        self.available_transactions.release()
+
+    def thread_function(self):
+        while True:
+            self.available_transactions.acquire()
+            print('acquired')
+            myTransaction = self.transaction_pool.pop()
+            self.validate_transaction(myTransaction)
+            if len(self.myBlock.transactions) == CAPACITY:
+                print('WE HAVE TO MINE!')
 
     def contact_bootstrap(self, bootstrap_address, node_address):
         r = requests.post(bootstrap_address + '/bootstrap/register',
@@ -62,7 +80,7 @@ class Node:
             self.myBlock = None
             for node_ip in self.ring[:-1]:
                 r = requests.post(node_ip['ip_address'] + '/post/starting_blockchain', json={'chain': self.chain})
-            pprint(self.chain)
+            self.create_new_block(self.chain[-1]['hash'])
 
     def create_genesis_block(self, clients):
         first_transaction = transaction.Transaction(0, 0, self.myWallet.public_key, clients * 100, None, 0, 0)
