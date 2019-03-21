@@ -28,12 +28,23 @@ def hello_world():
     return redirect('https://www.youtube.com/watch?v=iA9KDAGwuMc')
 
 
+@app.route('/broadcast/block', methods=['POST'])
+def get_block():
+    print('Receiving block')
+    global curr_node
+    block_data = request.get_json()['block']
+    curr_node.add_block_to_pool(block_data)
+    response = {'message': 'OK'}
+    return jsonify(response), 200
+
+
 @app.route('/post/transaction', methods=['POST'])
 def create_transaction():
     print('Creating the transaction')
     global curr_node
     recipient_address = request.form['recipient_address']
-    amount = request.form['amount']
+    amount_temp = request.form['amount']
+    amount = int(amount_temp)
     c_id = None
     for c_node in curr_node.ring:
         if recipient_address == c_node['public_key']:
@@ -42,10 +53,9 @@ def create_transaction():
                                 recipient_address, amount,
                                 copy.deepcopy(curr_node.ring[curr_node.current_id]['balance']),
                                 curr_node.current_id, c_id)
-    #curr_node.validate_transaction({'transaction': t.to_dict_transaction()})
     curr_node.add_transaction_to_pool({'transaction': t.to_dict_transaction()})
     for b_node in curr_node.ring:
-        if b_node['id'] != curr_node.current_id:
+        if b_node['node_id'] != curr_node.current_id:
             r = requests.post(b_node['ip_address'] + '/receive/transaction',
                               json={'transaction': t.to_dict_transaction()})
     response = {'message': 'OK'}
@@ -58,7 +68,6 @@ def receive_transaction():
     global curr_node
     transaction_data = request.get_json()['transaction']
     curr_node.add_transaction_to_pool({'transaction': transaction_data})
-    #curr_node.validate_transaction({'transaction': transaction_data})
     response = {'message': 'OK'}
     return jsonify(response), 200
 

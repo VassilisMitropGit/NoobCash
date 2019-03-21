@@ -1,5 +1,6 @@
 import binascii
 import copy
+import json
 import hashlib
 import threading
 from pprint import pprint
@@ -31,7 +32,9 @@ class Node:
         self.unspent_transactions = []
         self.ip_address = node_address
         self.transaction_pool = deque()
+        self.block_pool = deque()
         self.available_transactions = threading.Semaphore(value=0)
+        self.available_blocks = threading.Semaphore(value=0)
         myThread = threading.Thread(target=self.thread_function)
         myThread.start()
 
@@ -48,6 +51,10 @@ class Node:
         self.transaction_pool.appendleft(t)
         self.available_transactions.release()
 
+    def add_block_to_pool(self, b):
+        self.block_pool.appendleft(b)
+        self.available_blocks.release()
+
     def thread_function(self):
         while True:
             self.available_transactions.acquire()
@@ -56,6 +63,12 @@ class Node:
             self.validate_transaction(myTransaction)
             if len(self.myBlock.transactions) == CAPACITY:
                 print('WE HAVE TO MINE!')
+                self.mine_block()
+                if self.myBlock.nonce is not None:
+                    self.myBlock.hash = self.myBlock.calculate_hash()
+                    self.broadcast_block()
+                self.myBlock = None
+                self.create_new_block(self.chain[-1]['hash'])
 
     def contact_bootstrap(self, bootstrap_address, node_address):
         r = requests.post(bootstrap_address + '/bootstrap/register',
@@ -81,6 +94,7 @@ class Node:
             for node_ip in self.ring[:-1]:
                 r = requests.post(node_ip['ip_address'] + '/post/starting_blockchain', json={'chain': self.chain})
             self.create_new_block(self.chain[-1]['hash'])
+            pprint(self.ring)
 
     def create_genesis_block(self, clients):
         first_transaction = transaction.Transaction(0, 0, self.myWallet.public_key, clients * 100, None, 0, 0)
@@ -170,6 +184,12 @@ class Node:
 
         nonce = 0
         while self.valid_proof(self.myBlock.transactions, last_hash, nonce) is False:
+            lock = self.available_blocks.acquire(blocking=False)
+            if lock:
+                the_block = self.block_pool.pop()
+                if self.valid_block(the_block):
+                    self.chain.append(the_block)
+                    return None
             nonce += 1
 
         return nonce
@@ -179,9 +199,53 @@ class Node:
         guess_hash = hashlib.sha256(guess).hexdigest()
         return guess_hash[:difficulty] == '0'*difficulty
 
+    def valid_block(self, b):
+        last_block = self.chain[-1]
+        last_hash = last_block['hash']
+        if b['previous_hash'] == last_hash:
+            block_string = json.dumps({
+                "nonce": b['nonce'],
+                "timestamp": b['timestamp'],
+                "transactions": b['transactions'],
+                "previous_hash": b['previous_hash']
+            }, sort_keys=True).encode()
+            my_hash = hashlib.sha256(block_string).hexdigest()
+            if my_hash == b['hash']:
+                return True
+            else:
+                return False
+
     def broadcast_block(self):
-        for t in self.ring:
-            self.NBC = 1  # this is temp line of code until the requests are complete
+        for b in self.ring:
+            if b['node_id'] != self.current_id:
+                r = requests.post(b['ip_address'] + '/broadcast/block',
+                                  json={'block': copy.deepcopy(self.myBlock.to_dict())})
+
+    def valid_chain(self, chain):
+        last_block = chain[0]
+        current_index = 1
+
+        while current_index < len(chain):
+            block = chain[current_index]
+            # Check that the hash of the block is correct
+            if block['previous_hash'] != self.hash(last_block):
+                return False
+
+            # Check that the Proof of Work is correct
+            # Delete the reward transaction
+            transactions = block['transactions'][:-1]
+            # Need to make sure that the dictionary is ordered. Otherwise we'll get a different hash
+            transaction_elements = ['sender_address', 'recipient_address', 'value']
+            transactions = [OrderedDict((k, transaction[k]) for k in transaction_elements) for transaction in
+                            transactions]
+
+            if not self.valid_proof(transactions, block['previous_hash'], block['nonce'], MINING_DIFFICULTY):
+                return False
+
+            last_block = block
+            current_index += 1
+
+        return True
 
     def resolve_conflicts(self):
         neighbours = self.nodes
